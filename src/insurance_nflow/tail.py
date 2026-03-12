@@ -422,7 +422,8 @@ def estimate_tail_params(
     else:
         lambda_neg = 0.5
 
-    lambda_pos = float(np.clip(lambda_pos, 0.3, 3.0))
-    lambda_neg = float(np.clip(lambda_neg, 0.3, 3.0))
+    # Lower bound 0.52 ensures erfc(z/sqrt2)/lambda < 2 for z in [-2, 2] (safe range)
+    lambda_pos = float(np.clip(lambda_pos, 0.52, 3.0))
+    lambda_neg = float(np.clip(lambda_neg, 0.52, 3.0))
 
     return lambda_pos, lambda_neg
