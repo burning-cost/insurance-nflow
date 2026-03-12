@@ -17,7 +17,7 @@ from insurance_nflow.tail import (
     hill_double_bootstrap,
     estimate_tail_params,
     _erfc,
-    _erfc_inverse,
+    _erfcinv,
 )
 
 
@@ -132,26 +132,37 @@ class TestTailTransformProperties:
         assert tail._log_lambda_pos.requires_grad
         assert tail._log_lambda_neg.requires_grad
 
-    def test_heavier_tail_larger_z_output(self):
+    def test_heavier_lambda_stretches_tail_via_inverse(self):
         """
-        Heavier tail (larger lambda) should produce larger |u| for large |z|.
-        The TTF stretches the tail — larger lambda = more stretch.
+        T (inverse) maps N(0,1) to heavy-tailed output.
+        For lambda > 1: T(u; lam>1) should give SMALLER |z| than identity,
+        because heavier tails mean the same u quantile maps to a larger range.
+
+        The correct test: for the same u value, lambda=1 gives T(u)=u (identity).
+        For lambda > 1 (heavier tails), T(u) > u at u > 0.
+        For lambda < 1 (lighter tails), T(u) < u at u > 0.
         """
-        tail_light = TailTransform(lambda_pos=0.5, lambda_neg=0.5)
+        tail_identity = TailTransform(lambda_pos=1.0, lambda_neg=1.0)
         tail_heavy = TailTransform(lambda_pos=2.0, lambda_neg=2.0)
-        z = torch.tensor([3.0])
-        u_light, _ = tail_light.forward(z)
-        u_heavy, _ = tail_heavy.forward(z)
-        # Heavier tail maps large z to smaller u (the inverse has heavier tail)
-        # The forward maps Gaussian z -> "less Gaussian" u
-        # Actually: forward maps heavy-tailed z -> standard normal u
-        # So inverse maps standard normal -> heavy-tailed
-        # For z=3 (already in tail): heavier lambda means u is more "normal"
-        # The inverse is what generates heavy tails
-        u_inv_light, _ = tail_light.inverse(z)
-        u_inv_heavy, _ = tail_heavy.inverse(z)
-        assert float(u_inv_heavy[0]) > float(u_inv_light[0]), (
-            "Heavier tail (larger lambda) should give larger output from inverse at z=3"
+        tail_light = TailTransform(lambda_pos=0.5, lambda_neg=0.5)
+
+        u = torch.tensor([2.0])
+
+        z_identity, _ = tail_identity.inverse(u)
+        z_heavy, _ = tail_heavy.inverse(u)
+        z_light, _ = tail_light.inverse(u)
+
+        # At lambda=1: T is identity, so z = u = 2.0
+        assert abs(float(z_identity[0]) - 2.0) < 0.01, (
+            f"At lam=1, T(2) should equal 2, got {float(z_identity[0]):.4f}"
+        )
+        # With lambda=2 (heavier tail): T(2) > 2 (same Gaussian u maps to larger z)
+        assert float(z_heavy[0]) > float(z_identity[0]), (
+            f"Heavier tail (lam=2): T(2)={float(z_heavy[0]):.3f} should exceed identity T(2)={float(z_identity[0]):.3f}"
+        )
+        # With lambda=0.5 (lighter tail): T(2) < 2
+        assert float(z_light[0]) < float(z_identity[0]), (
+            f"Lighter tail (lam=0.5): T(2)={float(z_light[0]):.3f} should be less than identity T(2)={float(z_identity[0]):.3f}"
         )
 
     def test_batch_forward_matches_elementwise(self):
@@ -179,10 +190,10 @@ class TestErfc:
         diffs = erfc_vals[1:] - erfc_vals[:-1]
         assert (diffs <= 0).all()
 
-    def test_erfc_inverse_round_trip(self):
+    def test_erfcinv_round_trip(self):
         z = torch.linspace(0.1, 2.5, 30)
         erfc_z = _erfc(z)
-        z_rec = _erfc_inverse(erfc_z)
+        z_rec = _erfcinv(erfc_z)
         assert torch.allclose(z, z_rec, atol=1e-5)
 
 
