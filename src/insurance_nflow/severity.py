@@ -269,7 +269,7 @@ class SeverityFlow:
         idx_train, idx_val = perm[:n_train], perm[n_train:]
 
         # Estimate tail parameters before training (TTF fix mode)
-        lambda_pos, lambda_neg = 1.0, 0.5
+        lambda_pos, lambda_neg = 0.25, 0.1
         if self.tail_transform:
             log_claims = np.log(claims)
             lambda_pos, lambda_neg = estimate_tail_params(
