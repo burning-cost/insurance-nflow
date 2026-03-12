@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from scipy import stats as _scipy_stats
 
 
 def quantile(
@@ -291,12 +292,7 @@ def burning_cost_summary(
 
 
 def _skewness(x: np.ndarray) -> float:
-    """Sample skewness (Fisher-Pearson coefficient)."""
-    n = len(x)
-    if n < 3:
+    """Sample skewness using scipy.stats.skew (bias=False = Fisher-Pearson)."""
+    if len(x) < 3:
         return float("nan")
-    mu = np.mean(x)
-    sigma = np.std(x, ddof=1)
-    if sigma == 0:
-        return 0.0
-    return float(np.mean(((x - mu) / sigma) ** 3) * n * (n - 1) / (n - 2))
+    return float(_scipy_stats.skew(x, bias=False))
